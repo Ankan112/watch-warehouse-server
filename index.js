@@ -11,7 +11,7 @@ app.use(express.json())
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.rjdqp.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-console.log(uri)
+// console.log(uri)
 
 async function run() {
     try {
@@ -20,6 +20,7 @@ async function run() {
         const productsCollection = database.collection("products");
         const reviewCollection = database.collection("reviews")
         const ordersCollection = database.collection("orders")
+        const userCollection = database.collection('user')
 
         // POST Api (create products)
         app.post('/products', async (req, res) => {
@@ -80,6 +81,38 @@ async function run() {
         app.get('/review', async (req, res) => {
             const review = await reviewCollection.find({}).toArray()
             res.send(review)
+        })
+        // Admin 
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email
+            const query = { email: email }
+            const user = await userCollection.findOne(query)
+            let isAdmin = false;
+            if (user?.role === 'admin') {
+                isAdmin = true;
+            }
+            res.json({ admin: isAdmin })
+        })
+        // POST api
+        app.post('/users', async (req, res) => {
+            const result = await userCollection.insertOne(req.body)
+            res.json(result)
+        })
+        app.put('/users', async (req, res) => {
+            const user = req.body
+            const filter = { email: user.email }
+            const options = { upsert: true };
+            const updateDoc = { $set: user }
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+            res.json(result)
+        })
+        // PUT api
+        app.put('/users/admin', async (req, res) => {
+            const user = req.body;
+            const filter = { email: user.email }
+            const updateDoc = { $set: { role: 'admin' } };
+            const result = await userCollection.updateOne(filter, updateDoc)
+            res.json(result)
         })
     } finally {
         //   await client.close();
